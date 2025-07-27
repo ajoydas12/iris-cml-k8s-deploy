@@ -44,9 +44,14 @@ jobs:
         kubectl apply -f k8s/service.yaml
 
     - name: Report with CML
-      uses: iterative/cml@v2
+      uses: iterative/setup-cml@v2
+      with:
+        version: 'latest'      # or pin: 'v0.18.1'
+        # optionally disable vega if you don't need it:
+        # vega: false
       env:
         REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
     - name: Create CML comment
       run: |
