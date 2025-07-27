@@ -47,6 +47,10 @@ jobs:
       uses: iterative/cml@v1
       env:
         REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create CML comment
       run: |
         echo "## ✅ Iris API deployed to Kubernetes" >> report.md
         cml comment create report.md
+      env:
+        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
