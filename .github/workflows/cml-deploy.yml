@@ -44,7 +44,7 @@ jobs:
         kubectl apply -f k8s/service.yaml
 
     - name: Report with CML
-      uses: iterative/cml@v1
+      uses: iterative/cml@v2
       env:
         REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
