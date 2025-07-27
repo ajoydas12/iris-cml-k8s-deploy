@@ -8,7 +8,7 @@ This project demonstrates how to **package an ML model** (Iris classifier) using
 ## 📁 Project Structure
 
 ```
-
+```
 iris-api/
 ├── app/
 │   ├── main.py              # FastAPI app for serving the model
@@ -22,8 +22,8 @@ iris-api/
 │   └── workflows/
 │       └── cml-deploy.yml   # CML GitHub Actions definition
 └── README.md
+```
 
-````
 
 ---
 
