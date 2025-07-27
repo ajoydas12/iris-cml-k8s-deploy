@@ -37,10 +37,12 @@ jobs:
         docker push ghcr.io/${{ github.repository_owner }}/iris-api:latest
 
     - name: Set up Kubeconfig
+      # - name: Debug Kubeconfig
       run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
-        chmod 600 ~/.kube/config
+        cat ~/.kube/config
+        kubectl config view
+        kubectl config current-context
+        kubectl cluster-info
 
     - name: Deploy to Kubernetes
       run: |
