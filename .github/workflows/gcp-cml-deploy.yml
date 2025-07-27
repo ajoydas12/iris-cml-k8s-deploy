@@ -1,0 +1,108 @@
+name: Build and Deploy Iris API to GKE
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  GCP_PROJECT_ID: mlopsweek1
+  GKE_CLUSTER: mlopsweek6
+  GKE_REGION: us-central1
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+  REPO_NAME: iris-repo
+  IMAGE_NAME: iris-api
+  MODEL_BUCKET_URI: gs://mlops-course-mlopsweek1-unique/my-models/iris-classifier-week-1/model.joblib
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 20
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Decode GCP service account key
+      run: |
+        echo "🔐 Decoding GCP credentials..."
+        echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 --decode > gcp-key.json
+        echo "✅ Credentials file created."
+
+    - name: Authenticate with GCP
+      run: |
+        gcloud auth activate-service-account --key-file=gcp-key.json
+        echo "✅ GCP authenticated."
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        echo "🐳 Configuring Docker for Artifact Registry..."
+        gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
+        echo "✅ Docker configured."
+
+    - name: Build and Push Docker Image
+      run: |
+        echo "🔨 Building Docker image..."
+        IMAGE_TAG_SHA="${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        IMAGE_TAG_LATEST="${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest"
+        docker build -t "$IMAGE_TAG_SHA" -t "$IMAGE_TAG_LATEST" ./app
+        echo "📤 Pushing Docker images..."
+        docker push "$IMAGE_TAG_SHA"
+        docker push "$IMAGE_TAG_LATEST"
+        echo "✅ Docker images built and pushed."
+        echo "IMAGE_TAG_SHA=$IMAGE_TAG_SHA" >> $GITHUB_ENV
+
+    - name: Set up GKE credentials
+      run: |
+        echo "🔗 Configuring kubectl for GKE cluster..."
+        gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --region ${{ env.GKE_REGION }} --project ${{ env.GCP_PROJECT_ID }}
+        echo "✅ GKE credentials configured."
+
+    - name: Deploy to GKE
+      run: |
+        echo "🚀 Deploying to GKE..."
+        sed -i "s|image: .*|image: $IMAGE_TAG_LATEST|g" k8s/deployment.yaml
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+        echo "⏳ Waiting for deployment rollout to complete..."
+        kubectl rollout status deployment/iris-api --timeout=300s
+        echo "✅ Deployment completed successfully."
+
+    - name: Install CML and Report Status
+      env:
+        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        npm install -g @dvcorg/cml
+        EXTERNAL_IP=""
+        for i in {1..12}; do
+          sleep 30
+          EXTERNAL_IP=$(kubectl get service iris-api-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          if [ -n "$EXTERNAL_IP" ]; then
+            echo "✅ External IP obtained: $EXTERNAL_IP"
+            break
+          fi
+          echo "🔍 Attempt $i: Still waiting for external IP..."
+        done
+        if [ -z "$EXTERNAL_IP" ]; then
+          echo "❌ Failed to get external IP after 6 minutes."
+          exit 1
+        fi
+        echo "## ✅ Deployment Successful" > report.md
+        echo "A new version of the Iris API has been deployed." >> report.md
+        echo "- **Commit:** [${GITHUB_SHA::7}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})" >> report.md
+        echo "- **Image Tag:** \`${IMAGE_TAG_LATEST}\`" >> report.md
+        echo "- **API Endpoint:** http://$EXTERNAL_IP" >> report.md
+        echo " " >> report.md
+        echo "### Test with cURL:" >> report.md
+        echo "\`\`\`bash" >> report.md
+        echo "curl -X 'POST' 'http://$EXTERNAL_IP/predict/' -H 'Content-Type: application/json' -d '{\"sepal_length\": 5.1, \"sepal_width\": 3.5, \"petal_length\": 1.4, \"petal_width\": 0.2}'" >> report.md
+        echo "\`\`\`" >> report.md
+        npx @dvcorg/cml comment create report.md
+        echo "✅ CML report posted."
+
+    - name: Cleanup credentials
+      if: always()
+      run: |
+        rm -f gcp-key.json
+        echo "✅ Cleanup completed."
