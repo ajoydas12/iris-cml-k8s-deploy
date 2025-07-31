@@ -12,6 +12,7 @@ env:
   REPO_NAME: my-repo
   IMAGE_NAME: iris_log
   MODEL_BUCKET_URI: gs://mlops-course-premium-cipher-462011-p3-unique/my-models/iris-classifier-week-1/model.joblib
+
 jobs:
   build-and-deploy:
     name: Build and Deploy
@@ -26,7 +27,7 @@ jobs:
     - name: Decode GCP service account key
       run: |
         echo "🔐 Decoding GCP credentials..."
-        echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 --decode > gcp-key.json
+        echo "${{ secrets.GCP_SA_KEY_B64 }}" > gcp-key.json
         echo "✅ Credentials file created."
 
     - name: Authenticate with GCP
@@ -65,7 +66,7 @@ jobs:
         kubectl apply -f k8s/deployment.yaml
         kubectl apply -f k8s/service.yaml
         echo "⏳ Waiting for deployment rollout to complete..."
-        kubectl rollout status deployment/iris-api --timeout=300s
+        kubectl rollout status deployment/iris-log-ml-service --timeout=300s
         echo "✅ Deployment completed successfully."
 
     - name: Install CML and Report Status
