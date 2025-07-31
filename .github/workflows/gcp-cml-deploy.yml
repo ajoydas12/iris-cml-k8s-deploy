@@ -20,26 +20,27 @@ jobs:
     permissions:
       contents: write
     timeout-minutes: 20
+
     steps:
-    - name: Checkout repository
+    - name: Clone repository
       uses: actions/checkout@v4
 
-    - name: Decode GCP service account key
+    - name: Create GCP credentials file
       run: |
-        echo "🔐 Decoding GCP credentials..."
-        echo "${{ secrets.GCP_SA_KEY }}" > gcp-key.json
-        echo "✅ Credentials file created."
+        echo "Setting up GCP credentials..."
+        echo '${{ secrets.GCP_SA_KEY }}' > gcp-key.json
+        echo "Credentials written to gcp-key.json"
 
-    - name: Authenticate with GCP
+    - name: Authenticate with Google Cloud
       run: |
         gcloud auth activate-service-account --key-file=gcp-key.json
-        echo "✅ GCP authenticated."
+        echo "Authenticated with GCP"
 
-    - name: Configure Docker for Artifact Registry
+    - name: Download model artifact from GCS
       run: |
-        echo "🐳 Configuring Docker for Artifact Registry..."
-        gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
-        echo "✅ Docker configured."
+        echo "Downloading model from GCS..."
+        gcloud storage cp "${{ env.MODEL_BUCKET_URI }}" ./app/amodel.joblib
+        echo "Model downloaded successfully"
 
     - name: Build and Push Docker Image
       run: |
