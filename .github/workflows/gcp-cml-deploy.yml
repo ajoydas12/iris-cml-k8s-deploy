@@ -47,7 +47,7 @@ jobs:
         echo "🔨 Building Docker image..."
         IMAGE_TAG_SHA="${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
         IMAGE_TAG_LATEST="${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest"
-        docker build -t "$IMAGE_TAG_SHA" -t "$IMAGE_TAG_LATEST" ./app
+        docker build -t "$IMAGE_TAG_SHA" -t "$IMAGE_TAG_LATEST" .
         echo "📤 Pushing Docker images..."
         docker push "$IMAGE_TAG_SHA"
         docker push "$IMAGE_TAG_LATEST"
